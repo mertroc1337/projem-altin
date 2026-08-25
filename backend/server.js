@@ -3,6 +3,7 @@ import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import sqlite3 from 'sqlite3';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import https from 'https';
@@ -14,11 +15,34 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Frontend dosyalarını doğrudan sunucu üzerinden aç
+// Frontend (HTML arayüzü) dosyalarını doğrudan sun
 app.use(express.static(path.join(__dirname, '../frontend')));
 
-// Veritabanı
-const db = new sqlite3.Database('./database.sqlite');
+// ============================================
+// VERİTABANI BAŞLATMA (OTOMATİK ONARIMLI)
+// ============================================
+const dbPath = path.join(__dirname, 'database.sqlite');
+
+// Eğer dosya boş (0 byte) ise veya bozulmuşsa sıfırla
+try {
+  if (fs.existsSync(dbPath)) {
+    const stats = fs.statSync(dbPath);
+    if (stats.size === 0) {
+      fs.unlinkSync(dbPath);
+      console.log('⚠️ Boş veritabanı temizlendi, yeniden oluşturuluyor...');
+    }
+  }
+} catch (e) {
+  console.log('DB kontrolü:', e.message);
+}
+
+const db = new sqlite3.Database(dbPath, (err) => {
+  if (err) {
+    console.error('❌ DB Bağlantı Hatası:', err.message);
+  } else {
+    console.log('✅ SQLite veritabanı hazır.');
+  }
+});
 
 db.serialize(() => {
   db.run(`CREATE TABLE IF NOT EXISTS users (
@@ -39,7 +63,7 @@ db.serialize(() => {
 });
 
 // ============================================
-// CANLI ALTIN FİYATLARI (HIZLI & KESİNTİSİZ)
+// CANLI ALTIN FİYATLARI
 // ============================================
 let latestPrices = {};
 
@@ -91,15 +115,14 @@ function fetchLivePrices() {
           latestPrices = prices;
         }
       } catch (e) {
-        console.error('Fiyat ayrıştırma hatası:', e.message);
+        console.error('Fiyat parse hatası:', e.message);
       }
     });
   }).on('error', (err) => {
-    console.error('Fiyat çekme hatası:', err.message);
+    console.error('Fiyat bağlantı hatası:', err.message);
   });
 }
 
-// İlk çekim ve 5 saniyede bir güncelleme
 fetchLivePrices();
 setInterval(fetchLivePrices, 5000);
 
@@ -209,7 +232,7 @@ app.get('/api/prices', (req, res) => {
   res.json(latestPrices);
 });
 
-// Anasayfa yönlendirmesi
+// Sayfa yenilendiğinde index.html'e yönlendir
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
