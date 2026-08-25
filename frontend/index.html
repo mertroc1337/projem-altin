@@ -94,4 +94,382 @@
     /* Scrollbar */
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: #0f172a; }
-    ::-webkit-scrollbar
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+  </style>
+</head>
+<body>
+  <div class="container" id="app"></div>
+
+  <script>
+    // API URL - Render'da veya localde otomatik çalışır
+    const API = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
+      ? 'http://localhost:3001/api'
+      : (window.location.origin + '/api');
+
+    const goldNames = {
+      gramaltin: 'Gram Altın', hasaltin: 'Has Altın', ons: 'Altın ONS',
+      yeniceyrek: 'Yeni Çeyrek', eskiceyrek: 'Eski Çeyrek', ceyrek: 'Çeyrek Altın',
+      yeniyarim: 'Yeni Yarım', eskiyarim: 'Eski Yarım', yarim: 'Yarım Altın',
+      yenitam: 'Yeni Tam', eskitam: 'Eski Tam', tek: 'Tam Altın',
+      yeniata: 'Yeni Ata', eskiata: 'Eski Ata', ata: 'Ata Altını',
+      yeniata5: 'Yeni 5\'li Ata', eskiata5: 'Eski 5\'li Ata', ata5li: '5\'li Ata',
+      yenigremse: 'Yeni Gremse', eskigremse: 'Eski Gremse', gremese: 'Gremse',
+      '14ayar': '14 Ayar', '22ayar': '22 Ayar', gumustl: 'Gümüş (TL)'
+    };
+
+    let token = localStorage.getItem('token');
+    let prices = {};
+    let wsConnected = false;
+
+    function formatTL(n) {
+      if (typeof n !== 'number' || isNaN(n)) return '₺0,00';
+      return '₺' + n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function showLogin() {
+      document.getElementById('app').innerHTML = `
+        <div class="auth-box">
+          <h2>🪙 Altın Wallet</h2>
+          <form onsubmit="doLogin(event)">
+            <input type="email" id="loginEmail" placeholder="E-posta adresiniz" required>
+            <input type="password" id="loginPass" placeholder="Şifreniz" required>
+            <button type="submit">Giriş Yap</button>
+          </form>
+          <p>Hesabın yok mu? <span class="link" onclick="showRegister()">Kayıt Ol</span></p>
+        </div>
+      `;
+    }
+
+    function showRegister() {
+      document.getElementById('app').innerHTML = `
+        <div class="auth-box">
+          <h2>🪙 Kayıt Ol</h2>
+          <form onsubmit="doRegister(event)">
+            <input type="email" id="regEmail" placeholder="E-posta adresiniz" required>
+            <input type="password" id="regPass" placeholder="Şifreniz" required>
+            <button type="submit">Hesap Oluştur</button>
+          </form>
+          <p>Zaten hesabın var mı? <span class="link" onclick="showLogin()">Giriş Yap</span></p>
+        </div>
+      `;
+    }
+
+    async function doLogin(e) {
+      e.preventDefault();
+      try {
+        const res = await fetch(API + '/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: document.getElementById('loginEmail').value,
+            password: document.getElementById('loginPass').value
+          })
+        });
+        const data = await res.json();
+        if (data.token) {
+          token = data.token;
+          localStorage.setItem('token', token);
+          startApp();
+        } else {
+          alert(data.error || 'Giriş başarısız');
+        }
+      } catch (err) {
+        alert('Sunucuya bağlanılamadı');
+      }
+    }
+
+    async function doRegister(e) {
+      e.preventDefault();
+      try {
+        const res = await fetch(API + '/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: document.getElementById('regEmail').value,
+            password: document.getElementById('regPass').value
+          })
+        });
+        const data = await res.json();
+        if (data.id) {
+          alert('Kayıt başarılı! Giriş yapabilirsiniz.');
+          showLogin();
+        } else {
+          alert(data.error || 'Kayıt başarısız');
+        }
+      } catch (err) {
+        alert('Sunucuya bağlanılamadı');
+      }
+    }
+
+    function logout() {
+      token = null;
+      localStorage.removeItem('token');
+      showLogin();
+    }
+
+    function startApp() {
+      document.getElementById('app').innerHTML = `
+        <header>
+          <h1>🪙 Altın Wallet</h1>
+          <button class="logout-btn" onclick="logout()">Çıkış Yap</button>
+        </header>
+        
+        <div class="status-bar" id="statusBar">
+          <div class="status-pill status-warn"><span class="dot dot-yellow"></span>Bağlanıyor...</div>
+        </div>
+        
+        <div class="summary">
+          <div class="summary-box">
+            <div class="summary-label">Toplam Yatırım</div>
+            <div class="summary-value white" id="totalInvested">₺0,00</div>
+          </div>
+          <div class="summary-box">
+            <div class="summary-label">Güncel Değer</div>
+            <div class="summary-value white" id="totalCurrent">₺0,00</div>
+          </div>
+          <div class="summary-box">
+            <div class="summary-label">Kar / Zarar</div>
+            <div class="summary-value" id="totalPnL">₺0,00</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>📈 Canlı Altın Fiyatları</h2>
+          <div id="priceList"><div class="empty">Fiyatlar yükleniyor...</div></div>
+        </div>
+
+        <div class="card">
+          <h2>➕ Yeni Yatırım Ekle</h2>
+          <form onsubmit="addInvestment(event)">
+            <div class="form-row">
+              <select id="goldType">
+                <optgroup label="📍 Yeni Altınlar">
+                  <option value="gramaltin">Gram Altın</option>
+                  <option value="yeniceyrek">Yeni Çeyrek</option>
+                  <option value="yeniyarim">Yeni Yarım</option>
+                  <option value="yenitam">Yeni Tam</option>
+                  <option value="yeniata">Yeni Ata</option>
+                  <option value="yeniata5">Yeni 5'li Ata</option>
+                  <option value="yenigremse">Yeni Gremse</option>
+                  <option value="hasaltin">Has Altın</option>
+                  <option value="ons">Altın ONS</option>
+                </optgroup>
+                <optgroup label="📍 Eski Altınlar">
+                  <option value="eskiceyrek">Eski Çeyrek</option>
+                  <option value="eskiyarim">Eski Yarım</option>
+                  <option value="eskitam">Eski Tam</option>
+                  <option value="eskiata">Eski Ata</option>
+                  <option value="eskiata5">Eski 5'li Ata</option>
+                  <option value="eskigremse">Eski Gremse</option>
+                </optgroup>
+                <optgroup label="📍 Diğer">
+                  <option value="ceyrek">Çeyrek (Genel)</option>
+                  <option value="yarim">Yarım (Genel)</option>
+                  <option value="tek">Tam (Genel)</option>
+                  <option value="ata">Ata (Genel)</option>
+                  <option value="ata5li">5'li Ata (Genel)</option>
+                  <option value="gremese">Gremse (Genel)</option>
+                  <option value="22ayar">22 Ayar</option>
+                  <option value="14ayar">14 Ayar</option>
+                  <option value="gumustl">Gümüş (TL)</option>
+                </optgroup>
+              </select>
+              <select id="tradeType">
+                <option value="buy">Alım (Long)</option>
+                <option value="sell">Satım (Short)</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <input type="number" id="amount" placeholder="Miktar (adet / gram)" step="any" required>
+              <input type="number" id="price" placeholder="Alış Fiyatı (₺)" step="any" required>
+            </div>
+            <button type="submit">Yatırımı Kaydet</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <h2>📊 Portföyüm</h2>
+          <div id="portfolioList"><div class="empty">Henüz yatırım eklenmedi.</div></div>
+        </div>
+      `;
+      
+      fetchPrices();
+      setInterval(fetchPrices, 3000);
+      loadPortfolio();
+    }
+
+    async function fetchPrices() {
+      try {
+        const res = await fetch(API + '/prices');
+        if (!res.ok) return;
+        const data = await res.json();
+        prices = data.prices || {};
+        wsConnected = data.connected || false;
+        
+        showPrices();
+        loadPortfolio();
+        updateStatus(data);
+      } catch (e) {
+        console.log('Fiyat hatası:', e);
+      }
+    }
+
+    function updateStatus(data) {
+      const bar = document.getElementById('statusBar');
+      if (!bar) return;
+      
+      const count = Object.keys(prices).length;
+      const source = data.source || 'none';
+      
+      let html = '';
+      if (source === 'websocket') {
+        html = `<div class="status-pill status-online"><span class="dot dot-green"></span>Canlı Yayın Aktif (${count} altın)</div>`;
+      } else if (source === 'rest') {
+        html = `<div class="status-pill status-warn"><span class="dot dot-yellow"></span>REST Modu (${count} altın)</div>`;
+      } else if (count > 0) {
+        html = `<div class="status-pill status-warn"><span class="dot dot-yellow"></span>Veri Alınıyor (${count} altın)</div>`;
+      } else {
+        html = `<div class="status-pill status-offline"><span class="dot dot-red"></span>Bağlantı Yok</div>`;
+      }
+      
+      bar.innerHTML = html;
+    }
+
+    function showPrices() {
+      const list = document.getElementById('priceList');
+      if (!list) return;
+      
+      const keys = Object.keys(prices);
+      if (keys.length === 0) {
+        list.innerHTML = '<div class="empty">Fiyatlar yükleniyor...</div>';
+        return;
+      }
+      
+      let html = '';
+      keys.forEach(key => {
+        const p = prices[key];
+        const isUp = !(p.change || '').includes('-');
+        const changeClass = isUp ? 'change-up' : 'change-down';
+        const changeText = p.change || '%0,00';
+        
+        html += `
+          <div class="price-row">
+            <span class="price-name">${p.name}</span>
+            <div class="price-right">
+              <div>
+                <span class="price-sell">${formatTL(p.sell)}</span>
+                <span class="price-change ${changeClass}">${changeText}</span>
+              </div>
+              <div class="price-buy">Alış: ${formatTL(p.buy)}</div>
+            </div>
+          </div>
+        `;
+      });
+      list.innerHTML = html;
+    }
+
+    async function addInvestment(e) {
+      e.preventDefault();
+      const data = {
+        goldType: document.getElementById('goldType').value,
+        tradeType: document.getElementById('tradeType').value,
+        amount: parseFloat(document.getElementById('amount').value),
+        price: parseFloat(document.getElementById('price').value)
+      };
+
+      try {
+        const res = await fetch(API + '/investments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify(data)
+        });
+
+        if (res.ok) {
+          document.getElementById('amount').value = '';
+          document.getElementById('price').value = '';
+          await loadPortfolio();
+        } else {
+          const err = await res.json();
+          alert('Hata: ' + (err.error || 'İşlem başarısız'));
+        }
+      } catch (e) {
+        alert('Bağlantı hatası');
+      }
+    }
+
+    async function loadPortfolio() {
+      if (!token) return;
+      try {
+        const res = await fetch(API + '/portfolio', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        
+        if (!res.ok) return;
+        const data = await res.json();
+        
+        const s = data.summary || {};
+        const pnlEl = document.getElementById('totalPnL');
+        if (pnlEl) {
+          document.getElementById('totalInvested').textContent = formatTL(s.totalInvested || 0);
+          document.getElementById('totalCurrent').textContent = formatTL(s.totalCurrent || 0);
+          pnlEl.textContent = (s.totalPnL >= 0 ? '+' : '') + formatTL(s.totalPnL || 0);
+          pnlEl.className = 'summary-value ' + (s.totalPnL >= 0 ? 'green' : 'red');
+        }
+
+        const list = document.getElementById('portfolioList');
+        if (!list) return;
+        
+        const invs = data.investments || [];
+        if (invs.length === 0) {
+          list.innerHTML = '<div class="empty">Henüz yatırım eklenmedi. İlk yatırımını eklemek için yukarıdaki formu kullan.</div>';
+          return;
+        }
+
+        let html = '';
+        invs.forEach(inv => {
+          const pnlClass = inv.pnl >= 0 ? 'green' : 'red';
+          const sign = inv.pnl >= 0 ? '+' : '';
+          const badgeClass = inv.trade_type === 'buy' ? 'badge-buy' : 'badge-sell';
+          const badgeText = inv.trade_type === 'buy' ? 'ALIM' : 'SATIŞ';
+          
+          html += `
+            <div class="investment-item">
+              <div class="invest-info">
+                <div class="invest-title">${goldNames[inv.gold_type] || inv.gold_type} <span class="badge ${badgeClass}">${badgeText}</span></div>
+                <div class="invest-detail">${inv.amount} adet × ${formatTL(inv.buy_price)} • ${new Date(inv.created_at).toLocaleDateString('tr-TR')}</div>
+              </div>
+              <div class="invest-pnl">
+                <div class="pnl-value ${pnlClass}">${sign}${formatTL(inv.pnl)}</div>
+                <div class="pnl-percent ${pnlClass}">${sign}%${inv.pnlPercent.toFixed(2)}</div>
+              </div>
+              <button class="delete-btn" onclick="deleteInv(${inv.id})">Sil</button>
+            </div>
+          `;
+        });
+        list.innerHTML = html;
+      } catch (e) {
+        console.log('Portföy hatası:', e);
+      }
+    }
+
+    async function deleteInv(id) {
+      try {
+        await fetch(API + '/investments/' + id, {
+          method: 'DELETE',
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        loadPortfolio();
+      } catch (e) {
+        alert('Silme hatası');
+      }
+    }
+
+    if (token) {
+      startApp();
+    } else {
+      showLogin();
+    }
+  </script>
+</body>
+</html>
