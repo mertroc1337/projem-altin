@@ -3,10 +3,9 @@ import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import sqlite3 from 'sqlite3';
-import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import https from 'https';
+import { io } from 'socket.io-client';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,30 +14,17 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Frontend (HTML arayüzü) dosyalarını doğrudan sun
+// Frontend (HTML) dosyalarını sun
 app.use(express.static(path.join(__dirname, '../frontend')));
 
 // ============================================
-// VERİTABANI BAŞLATMA (OTOMATİK ONARIMLI)
+// VERİTABANI BAŞLATMA
 // ============================================
-const dbPath = path.join(__dirname, 'database.sqlite');
-
-// Eğer dosya boş (0 byte) ise veya bozulmuşsa sıfırla
-try {
-  if (fs.existsSync(dbPath)) {
-    const stats = fs.statSync(dbPath);
-    if (stats.size === 0) {
-      fs.unlinkSync(dbPath);
-      console.log('⚠️ Boş veritabanı temizlendi, yeniden oluşturuluyor...');
-    }
-  }
-} catch (e) {
-  console.log('DB kontrolü:', e.message);
-}
+const dbPath = path.join(__dirname, 'wallet.db');
 
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
-    console.error('❌ DB Bağlantı Hatası:', err.message);
+    console.error('❌ DB Hatası:', err.message);
   } else {
     console.log('✅ SQLite veritabanı hazır.');
   }
@@ -63,68 +49,81 @@ db.serialize(() => {
 });
 
 // ============================================
-// CANLI ALTIN FİYATLARI
+// HAREM ALTIN CANLI WEBSOCKET ENTEGRASYONU
 // ============================================
 let latestPrices = {};
 
-const mapping = {
-  'gramaltin': { name: 'Gram Altın', key: 'GRA' },
-  'hasaltin': { name: 'Has Altın', key: 'HAS' },
-  'ons': { name: 'Altın ONS', key: 'ONS' },
-  'ceyrek': { name: 'Çeyrek Altın', key: 'CEYREKALTIN' },
-  'yeniceyrek': { name: 'Yeni Çeyrek Altın', key: 'CEYREKALTIN' },
-  'eskiceyrek': { name: 'Eski Çeyrek Altın', key: 'CEYREKALTIN' },
-  'yarim': { name: 'Yarım Altın', key: 'YARIMALTIN' },
-  'yeniyarim': { name: 'Yeni Yarım Altın', key: 'YARIMALTIN' },
-  'eskiyarim': { name: 'Eski Yarım Altın', key: 'YARIMALTIN' },
-  'tek': { name: 'Tam Altın', key: 'TAMALTIN' },
-  'yenitam': { name: 'Yeni Tam Altın', key: 'TAMALTIN' },
-  'eskitam': { name: 'Eski Tam Altın', key: 'TAMALTIN' },
-  'ata': { name: 'Ata Altını', key: 'ATAALTIN' },
-  'yeniata': { name: 'Yeni Ata', key: 'ATAALTIN' },
-  'eskiata': { name: 'Eski Ata', key: 'ATAALTIN' },
-  'yeniata5': { name: "Yeni 5'li Ata", key: 'BESLIALTIN' },
-  'eskiata5': { name: "Eski 5'li Ata", key: 'BESLIALTIN' },
-  'ata5li': { name: "5'li Ata", key: 'BESLIALTIN' },
-  'yenigremse': { name: 'Yeni Gremse', key: 'GREMSEALTIN' },
-  'eskigremse': { name: 'Eski Gremse', key: 'GREMSEALTIN' },
-  'gremese': { name: 'Gremse', key: 'GREMSEALTIN' },
-  '14ayar': { name: '14 Ayar', key: '14AYARALTIN' },
-  '22ayar': { name: '22 Ayar', key: 'YIA' },
-  'gumustl': { name: 'Gümüş (TL)', key: 'GUMUS' }
+const haremMapping = {
+  'gramaltin': { name: 'Gram Altın', code: 'ALTIN' },
+  'hasaltin': { name: 'Has Altın', code: 'ALTIN' },
+  'ons': { name: 'Altın ONS', code: 'ONS' },
+  'yeniceyrek': { name: 'Yeni Çeyrek Altın', code: 'CEYREK_YENI' },
+  'eskiceyrek': { name: 'Eski Çeyrek Altın', code: 'CEYREK_ESKI' },
+  'ceyrek': { name: 'Çeyrek Altın', code: 'CEYREK_YENI' },
+  'yeniyarim': { name: 'Yeni Yarım Altın', code: 'YARIM_YENI' },
+  'eskiyarim': { name: 'Eski Yarım Altın', code: 'YARIM_ESKI' },
+  'yarim': { name: 'Yarım Altın', code: 'YARIM_YENI' },
+  'yenitam': { name: 'Yeni Tam Altın', code: 'TEK_YENI' },
+  'eskitam': { name: 'Eski Tam Altın', code: 'TEK_ESKI' },
+  'tek': { name: 'Tam Altın', code: 'TEK_YENI' },
+  'yeniata': { name: 'Yeni Ata', code: 'ATA_YENI' },
+  'eskiata': { name: 'Eski Ata', code: 'ATA_ESKI' },
+  'ata': { name: 'Ata Altını', code: 'ATA_YENI' },
+  'yeniata5': { name: "Yeni 5'li Ata", code: 'ATA5_YENI' },
+  'eskiata5': { name: "Eski 5'li Ata", code: 'ATA5_ESKI' },
+  'ata5li': { name: "5'li Ata", code: 'ATA5_YENI' },
+  'yenigremse': { name: 'Yeni Gremse', code: 'GREMESE_YENI' },
+  'eskigremse': { name: 'Eski Gremse', code: 'GREMESE_ESKI' },
+  'gremese': { name: 'Gremse', code: 'GREMESE_YENI' },
+  '14ayar': { name: '14 Ayar', code: 'AYAR14' },
+  '22ayar': { name: '22 Ayar', code: 'AYAR22' },
+  'gumustl': { name: 'Gümüş (TL)', code: 'GUMUSTRY' }
 };
 
-function fetchLivePrices() {
-  https.get('https://finans.truncgil.com/v4/today.json', (res) => {
-    let data = '';
-    res.on('data', chunk => data += chunk);
-    res.on('end', () => {
-      try {
-        const json = JSON.parse(data);
-        const prices = {};
-        for (const [id, item] of Object.entries(mapping)) {
-          const raw = json[item.key];
-          if (raw) {
-            const buy = typeof raw.Alış === 'string' ? parseFloat(raw.Alış.replace(/\./g, '').replace(',', '.')) : (parseFloat(raw.Buying) || parseFloat(raw.Alış) || 0);
-            const sell = typeof raw.Satış === 'string' ? parseFloat(raw.Satış.replace(/\./g, '').replace(',', '.')) : (parseFloat(raw.Selling) || parseFloat(raw.Satış) || 0);
-            const change = raw.Değişim || raw.Change || '%0,00';
-            prices[id] = { name: item.name, buy, sell, change };
-          }
-        }
-        if (Object.keys(prices).length > 0) {
-          latestPrices = prices;
-        }
-      } catch (e) {
-        console.error('Fiyat parse hatası:', e.message);
-      }
-    });
-  }).on('error', (err) => {
-    console.error('Fiyat bağlantı hatası:', err.message);
-  });
-}
+// Harem Altın canlı soket bağlantısı
+const haremSocket = io('wss://hrmsocketonly.haremaltin.com', {
+  transports: ['websocket'],
+  reconnection: true,
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000
+});
 
-fetchLivePrices();
-setInterval(fetchLivePrices, 5000);
+haremSocket.on('connect', () => {
+  console.log('🔗 Harem Altın Canlı Yayınına Bağlanıldı!');
+});
+
+haremSocket.on('price_changed', (res) => {
+  if (res && res.data) {
+    const prices = {};
+    for (const [key, item] of Object.entries(haremMapping)) {
+      const row = res.data[item.code];
+      if (row) {
+        const buy = typeof row.alis === 'string' ? parseFloat(row.alis.replace(/\./g, '').replace(',', '.')) : (parseFloat(row.alis) || 0);
+        const sell = typeof row.satis === 'string' ? parseFloat(row.satis.replace(/\./g, '').replace(',', '.')) : (parseFloat(row.satis) || 0);
+        
+        let changeText = '%0,00';
+        if (row.dusuk && row.yuksek && buy > 0) {
+          const chg = row.dir?.satis_dir === 'down' ? '- ' : '+ ';
+          changeText = chg + (row.tarih ? row.tarih.split(' ')[1] : '');
+        }
+        
+        prices[key] = {
+          name: item.name,
+          buy,
+          sell,
+          change: changeText
+        };
+      }
+    }
+    if (Object.keys(prices).length > 0) {
+      latestPrices = prices;
+    }
+  }
+});
+
+haremSocket.on('disconnect', (reason) => {
+  console.log('⚠️ Harem Altın bağlantısı koptu, yeniden bağlanılıyor...', reason);
+});
 
 // ============================================
 // GİRİŞ KONTROLÜ (TOKEN)
@@ -240,5 +239,5 @@ app.get('*', (req, res) => {
 // SUNUCUYU BAŞLAT
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log(`🚀 Sunucu ${PORT} portunda aktif!`);
+  console.log(`🚀 Sunucu ${PORT} portunda Harem Altın canlı yayınıyla aktif!`);
 });
