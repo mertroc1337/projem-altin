@@ -3,409 +3,95 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Altın Portföyüm - Harem Altın Canlı</title>
+  <title>Altın Wallet - Profesyonel Portföy Takibi</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: #f4f6f8; padding: 20px; color: #1e293b; }
-    .container { max-width: 800px; margin: 0 auto; }
-    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    h1 { font-size: 24px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 8px; }
-    .summary { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
-    .summary-box { background: white; border-radius: 12px; padding: 16px; flex: 1; min-width: 200px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-    .summary-label { font-size: 13px; color: #64748b; margin-bottom: 6px; font-weight: 500; }
-    .summary-value { font-size: 22px; font-weight: 700; }
-    .green { color: #16a34a !important; }
-    .red { color: #dc2626 !important; }
-    .card { background: white; border-radius: 12px; padding: 18px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-    .card h2 { font-size: 16px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; color: #334155; }
-    .live-dot { width: 8px; height: 8px; background: #16a34a; border-radius: 50%; display: inline-block; animation: blink 1s infinite; }
-    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
-    .price-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: #0f172a; padding: 20px; color: #e2e8f0; min-height: 100vh; }
+    .container { max-width: 900px; margin: 0 auto; }
+    
+    /* Header */
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #1e293b; }
+    h1 { font-size: 26px; font-weight: 800; color: #fbbf24; display: flex; align-items: center; gap: 10px; letter-spacing: -0.5px; }
+    .logout-btn { background: #334155; color: #e2e8f0; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; transition: 0.2s; }
+    .logout-btn:hover { background: #475569; }
+    
+    /* Status Badge */
+    .status-bar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+    .status-pill { padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+    .status-online { background: #064e3b; color: #34d399; border: 1px solid #059669; }
+    .status-offline { background: #450a0a; color: #f87171; border: 1px solid #dc2626; }
+    .status-warn { background: #451a03; color: #fbbf24; border: 1px solid #d97706; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; }
+    .dot-green { background: #34d399; animation: pulse 1.5s infinite; }
+    .dot-red { background: #f87171; }
+    .dot-yellow { background: #fbbf24; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    
+    /* Summary Cards */
+    .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 24px; }
+    @media (max-width: 640px) { .summary { grid-template-columns: 1fr; } }
+    .summary-box { background: linear-gradient(145deg, #1e293b, #0f172a); border: 1px solid #334155; border-radius: 14px; padding: 20px; text-align: center; position: relative; overflow: hidden; }
+    .summary-box::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: #fbbf24; opacity: 0.3; }
+    .summary-label { font-size: 12px; color: #94a3b8; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .summary-value { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .green { color: #34d399 !important; }
+    .red { color: #f87171 !important; }
+    .white { color: #f8fafc !important; }
+    
+    /* Cards */
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 14px; padding: 20px; margin-bottom: 18px; }
+    .card h2 { font-size: 15px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; color: #f1f5f9; font-weight: 700; }
+    
+    /* Price List */
+    .price-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #334155; transition: 0.15s; }
+    .price-row:hover { background: #0f172a; margin: 0 -20px; padding-left: 20px; padding-right: 20px; }
     .price-row:last-child { border-bottom: none; }
-    .price-name { font-weight: 600; font-size: 14px; }
-    .price-value { font-weight: 700; font-size: 15px; text-align: right; }
-    .price-sub { font-size: 12px; color: #64748b; margin-right: 8px; }
+    .price-name { font-weight: 600; font-size: 14px; color: #e2e8f0; }
+    .price-right { text-align: right; }
+    .price-sell { font-weight: 700; font-size: 15px; color: #fbbf24; font-variant-numeric: tabular-nums; }
+    .price-buy { font-size: 12px; color: #64748b; margin-top: 2px; }
+    .price-change { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; margin-left: 8px; }
+    .change-up { background: #064e3b; color: #34d399; }
+    .change-down { background: #450a0a; color: #f87171; }
+    
+    /* Form */
     .form-row { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
-    input, select { padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; flex: 1; min-width: 140px; outline: none; }
-    input:focus, select:focus { border-color: #3b82f6; }
-    button { padding: 10px 20px; background: #0f172a; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s; }
-    button:hover { background: #1e293b; }
-    .investment-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f1f5f9; gap: 10px; }
+    input, select { padding: 12px 14px; background: #0f172a; border: 1px solid #475569; border-radius: 10px; font-size: 14px; color: #e2e8f0; flex: 1; min-width: 140px; outline: none; transition: 0.2s; }
+    input:focus, select:focus { border-color: #fbbf24; }
+    button[type="submit"] { padding: 12px 24px; background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #0f172a; border: none; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; transition: 0.2s; width: 100%; }
+    button[type="submit"]:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3); }
+    
+    /* Portfolio */
+    .investment-item { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid #334155; gap: 12px; }
     .investment-item:last-child { border-bottom: none; }
-    .invest-info { flex: 1; }
-    .invest-title { font-weight: 600; font-size: 14px; }
-    .invest-detail { font-size: 12px; color: #64748b; margin-top: 3px; }
-    .invest-pnl { text-align: right; min-width: 100px; }
-    .pnl-value { font-weight: 700; font-size: 15px; }
-    .pnl-percent { font-size: 12px; font-weight: 600; }
-    .badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: 6px; font-weight: 700; }
-    .badge-buy { background: #dcfce7; color: #16a34a; }
-    .badge-sell { background: #fee2e2; color: #dc2626; }
-    .delete-btn { background: #fee2e2; color: #dc2626; padding: 4px 10px; font-size: 12px; border-radius: 6px; }
-    .delete-btn:hover { background: #fecaca; }
-    .empty { text-align: center; color: #94a3b8; padding: 24px; font-size: 14px; }
-    .auth-box { max-width: 360px; margin: 60px auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
-    .auth-box h2 { text-align: center; margin-bottom: 20px; font-size: 20px; }
-    .auth-box input { width: 100%; margin-bottom: 12px; }
-    .auth-box button { width: 100%; margin-top: 6px; }
-    .auth-box p { text-align: center; margin-top: 16px; font-size: 13px; color: #64748b; }
-    .link { color: #2563eb; cursor: pointer; font-weight: 600; }
+    .invest-info { flex: 1; min-width: 0; }
+    .invest-title { font-weight: 700; font-size: 14px; color: #f1f5f9; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+    .invest-detail { font-size: 12px; color: #64748b; margin-top: 4px; }
+    .invest-pnl { text-align: right; min-width: 110px; }
+    .pnl-value { font-weight: 800; font-size: 16px; font-variant-numeric: tabular-nums; }
+    .pnl-percent { font-size: 12px; font-weight: 700; margin-top: 2px; }
+    .badge { font-size: 10px; padding: 3px 8px; border-radius: 6px; font-weight: 700; }
+    .badge-buy { background: #064e3b; color: #34d399; }
+    .badge-sell { background: #450a0a; color: #f87171; }
+    .delete-btn { background: #450a0a; color: #f87171; padding: 6px 12px; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1px solid #7f1d1d; cursor: pointer; transition: 0.2s; white-space: nowrap; }
+    .delete-btn:hover { background: #7f1d1d; }
+    
+    .empty { text-align: center; color: #475569; padding: 32px; font-size: 14px; }
+    
+    /* Auth */
+    .auth-box { max-width: 400px; margin: 80px auto; background: linear-gradient(145deg, #1e293b, #0f172a); border: 1px solid #334155; padding: 40px; border-radius: 16px; }
+    .auth-box h2 { text-align: center; margin-bottom: 28px; font-size: 24px; color: #fbbf24; }
+    .auth-box input { width: 100%; margin-bottom: 14px; background: #0f172a; }
+    .auth-box button { width: 100%; margin-top: 8px; }
+    .auth-box p { text-align: center; margin-top: 20px; font-size: 14px; color: #64748b; }
+    .link { color: #fbbf24; cursor: pointer; font-weight: 700; }
     .link:hover { text-decoration: underline; }
-    .logout-btn { background: #64748b; padding: 6px 14px; font-size: 12px; }
-    .status { font-size: 12px; font-weight: 600; }
-  </style>
-</head>
-<body>
-  <div class="container" id="app"></div>
-
-  <script>
-    // Otomatik API URL (Canlıda ve yerelde sorunsuz çalışır)
-    const API = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
-      ? 'http://localhost:3001/api'
-      : (window.location.origin + '/api');
-
-    const goldNames = {
-      gramaltin: 'Gram Altın',
-      hasaltin: 'Has Altın',
-      yeniceyrek: 'Yeni Çeyrek Altın',
-      eskiceyrek: 'Eski Çeyrek Altın',
-      ceyrek: 'Çeyrek Altın',
-      yeniyarim: 'Yeni Yarım Altın',
-      eskiyarim: 'Eski Yarım Altın',
-      yarim: 'Yarım Altın',
-      yenitam: 'Yeni Tam Altın',
-      eskitam: 'Eski Tam Altın',
-      tek: 'Tam Altın',
-      yeniata: 'Yeni Ata',
-      eskiata: 'Eski Ata',
-      ata: 'Ata Altını',
-      yeniata5: 'Yeni 5\'li Ata',
-      eskiata5: 'Eski 5\'li Ata',
-      ata5li: '5\'li Ata',
-      yenigremse: 'Yeni Gremse',
-      eskigremse: 'Eski Gremse',
-      gremese: 'Gremse',
-      '22ayar': '22 Ayar Bilezik',
-      '14ayar': '14 Ayar Altın',
-      ons: 'Altın ONS ($)',
-      gumustl: 'Gümüş (TL)'
-    };
-
-    let token = localStorage.getItem('token');
-    let prices = {};
-
-    function formatTL(n) {
-      if (typeof n !== 'number' || isNaN(n)) return '₺0,00';
-      return '₺' + n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-
-    function showLogin() {
-      document.getElementById('app').innerHTML = `
-        <div class="auth-box">
-          <h2>🪙 Altın Wallet</h2>
-          <form onsubmit="doLogin(event)">
-            <input type="email" id="loginEmail" placeholder="E-posta" required>
-            <input type="password" id="loginPass" placeholder="Şifre" required>
-            <button type="submit">Giriş Yap</button>
-          </form>
-          <p>Hesabın yok mu? <span class="link" onclick="showRegister()">Kayıt Ol</span></p>
-        </div>
-      `;
-    }
-
-    function showRegister() {
-      document.getElementById('app').innerHTML = `
-        <div class="auth-box">
-          <h2>🪙 Kayıt Ol</h2>
-          <form onsubmit="doRegister(event)">
-            <input type="email" id="regEmail" placeholder="E-posta" required>
-            <input type="password" id="regPass" placeholder="Şifre" required>
-            <button type="submit">Kayıt Ol</button>
-          </form>
-          <p>Zaten hesabın var mı? <span class="link" onclick="showLogin()">Giriş Yap</span></p>
-        </div>
-      `;
-    }
-
-    async function doLogin(e) {
-      e.preventDefault();
-      try {
-        const res = await fetch(API + '/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: document.getElementById('loginEmail').value,
-            password: document.getElementById('loginPass').value
-          })
-        });
-        const data = await res.json();
-        if (data.token) {
-          token = data.token;
-          localStorage.setItem('token', token);
-          startApp();
-        } else {
-          alert(data.error || 'Giriş başarısız');
-        }
-      } catch (err) {
-        alert('Sunucuya bağlanılamadı: ' + err.message);
-      }
-    }
-
-    async function doRegister(e) {
-      e.preventDefault();
-      try {
-        const res = await fetch(API + '/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: document.getElementById('regEmail').value,
-            password: document.getElementById('regPass').value
-          })
-        });
-        const data = await res.json();
-        if (data.id) {
-          alert('Kayıt başarılı! Şimdi giriş yapabilirsiniz.');
-          showLogin();
-        } else {
-          alert(data.error || 'Kayıt başarısız');
-        }
-      } catch (err) {
-        alert('Sunucuya bağlanılamadı: ' + err.message);
-      }
-    }
-
-    function logout() {
-      token = null;
-      localStorage.removeItem('token');
-      showLogin();
-    }
-
-    function startApp() {
-      document.getElementById('app').innerHTML = `
-        <header>
-          <h1>🪙 Altın Wallet</h1>
-          <div style="display:flex; align-items:center; gap:10px;">
-            <span class="status" id="apiStatus">⏳ Bağlanıyor...</span>
-            <button class="logout-btn" onclick="logout()">Çıkış</button>
-          </div>
-        </header>
-        
-        <div class="summary">
-          <div class="summary-box">
-            <div class="summary-label">Toplam Yatırım</div>
-            <div class="summary-value" id="totalInvested">₺0,00</div>
-          </div>
-          <div class="summary-box">
-            <div class="summary-label">Güncel Değer</div>
-            <div class="summary-value" id="totalCurrent">₺0,00</div>
-          </div>
-          <div class="summary-box">
-            <div class="summary-label">Kar / Zarar</div>
-            <div class="summary-value" id="totalPnL">₺0,00</div>
-          </div>
-        </div>
-
-        <div class="card">
-          <h2><span class="live-dot"></span> Canlı Altın Fiyatları (Harem Altın)</h2>
-          <div id="priceList"><div class="empty">Fiyatlar yükleniyor...</div></div>
-        </div>
-
-        <div class="card">
-          <h2>➕ Yatırım Ekle</h2>
-          <form onsubmit="addInvestment(event)">
-            <div class="form-row">
-              <select id="goldType">
-                <optgroup label="📍 Altın Çeşitleri">
-                  <option value="gramaltin">Gram Altın</option>
-                  <option value="hasaltin">Has Altın</option>
-                  <option value="yeniceyrek">Yeni Çeyrek Altın</option>
-                  <option value="eskiceyrek">Eski Çeyrek Altın</option>
-                  <option value="yeniyarim">Yeni Yarım Altın</option>
-                  <option value="eskiyarim">Eski Yarım Altın</option>
-                  <option value="yenitam">Yeni Tam Altın</option>
-                  <option value="eskitam">Eski Tam Altın</option>
-                  <option value="yeniata">Yeni Ata</option>
-                  <option value="eskiata">Eski Ata</option>
-                  <option value="yeniata5">Yeni 5'li Ata</option>
-                  <option value="yenigremse">Yeni Gremse</option>
-                  <option value="22ayar">22 Ayar Bilezik</option>
-                  <option value="14ayar">14 Ayar</option>
-                  <option value="gumustl">Gümüş (TL)</option>
-                  <option value="ons">Altın ONS ($)</option>
-                </optgroup>
-              </select>
-              <select id="tradeType">
-                <option value="buy">Alım (Long)</option>
-                <option value="sell">Satım (Short)</option>
-              </select>
-            </div>
-            <div class="form-row">
-              <input type="number" id="amount" placeholder="Miktar (Adet / Gram)" step="any" required>
-              <input type="number" id="price" placeholder="Alış Fiyatı (₺)" step="any" required>
-            </div>
-            <button type="submit">Yatırımı Kaydet</button>
-          </form>
-        </div>
-
-        <div class="card">
-          <h2>📊 Portföyüm</h2>
-          <div id="portfolioList"><div class="empty">Henüz yatırım eklenmedi.</div></div>
-        </div>
-      `;
-      
-      fetchPrices();
-      setInterval(fetchPrices, 3000);
-      loadPortfolio();
-    }
-
-    async function fetchPrices() {
-      try {
-        const res = await fetch(API + '/prices');
-        if (!res.ok) return;
-        prices = await res.json();
-        showPrices();
-        loadPortfolio();
-        
-        const statusEl = document.getElementById('apiStatus');
-        if (statusEl) {
-          if (Object.keys(prices).length > 0) {
-            statusEl.textContent = '✅ Canlı';
-            statusEl.style.color = '#16a34a';
-          }
-        }
-      } catch (e) {
-        console.log('Fiyat hatası:', e);
-      }
-    }
-
-    function showPrices() {
-      const list = document.getElementById('priceList');
-      if (!list) return;
-      
-      const keys = Object.keys(prices);
-      if (keys.length === 0) {
-        list.innerHTML = '<div class="empty">Fiyatlar yükleniyor...</div>';
-        return;
-      }
-      
-      let html = '';
-      keys.forEach(key => {
-        const p = prices[key];
-        const isUp = !(p.change || '').includes('-');
-        html += `
-          <div class="price-row">
-            <span class="price-name">${p.name}</span>
-            <div class="price-value">
-              <span class="price-sub">Alış: ${formatTL(p.buy)}</span>
-              ${formatTL(p.sell)}
-              <span class="${isUp ? 'green' : 'red'}" style="font-size:12px;margin-left:6px;">${p.change || '%0.00'}</span>
-            </div>
-          </div>
-        `;
-      });
-      list.innerHTML = html;
-    }
-
-    async function addInvestment(e) {
-      e.preventDefault();
-      const data = {
-        goldType: document.getElementById('goldType').value,
-        tradeType: document.getElementById('tradeType').value,
-        amount: parseFloat(document.getElementById('amount').value),
-        price: parseFloat(document.getElementById('price').value)
-      };
-
-      try {
-        const res = await fetch(API + '/investments', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json', 
-            'Authorization': 'Bearer ' + token 
-          },
-          body: JSON.stringify(data)
-        });
-
-        if (res.ok) {
-          document.getElementById('amount').value = '';
-          document.getElementById('price').value = '';
-          await loadPortfolio();
-        } else {
-          const err = await res.json();
-          alert('Hata: ' + (err.error || 'İşlem başarısız'));
-        }
-      } catch (e) {
-        alert('Bağlantı hatası: ' + e.message);
-      }
-    }
-
-    async function loadPortfolio() {
-      if (!token) return;
-      try {
-        const res = await fetch(API + '/portfolio', {
-          headers: { 'Authorization': 'Bearer ' + token }
-        });
-        
-        if (!res.ok) return;
-        const data = await res.json();
-        
-        const s = data.summary || {};
-        const pnlEl = document.getElementById('totalPnL');
-        if (pnlEl) {
-          document.getElementById('totalInvested').textContent = formatTL(s.totalInvested || 0);
-          document.getElementById('totalCurrent').textContent = formatTL(s.totalCurrent || 0);
-          pnlEl.textContent = (s.totalPnL >= 0 ? '+' : '') + formatTL(s.totalPnL || 0);
-          pnlEl.className = 'summary-value ' + (s.totalPnL >= 0 ? 'green' : 'red');
-        }
-
-        const list = document.getElementById('portfolioList');
-        if (!list) return;
-        
-        const invs = data.investments || [];
-        if (invs.length === 0) {
-          list.innerHTML = '<div class="empty">Henüz yatırım eklenmedi.</div>';
-          return;
-        }
-
-        let html = '';
-        invs.forEach(inv => {
-          const pnlClass = inv.pnl >= 0 ? 'green' : 'red';
-          const sign = inv.pnl >= 0 ? '+' : '';
-          const badgeClass = inv.trade_type === 'buy' ? 'badge-buy' : 'badge-sell';
-          const badgeText = inv.trade_type === 'buy' ? 'ALIM' : 'SATIŞ';
-          
-          html += `
-            <div class="investment-item">
-              <div class="invest-info">
-                <div class="invest-title">${goldNames[inv.gold_type] || inv.gold_type} <span class="badge ${badgeClass}">${badgeText}</span></div>
-                <div class="invest-detail">${inv.amount} adet × ${formatTL(inv.buy_price)} • ${new Date(inv.created_at).toLocaleDateString('tr-TR')}</div>
-              </div>
-              <div class="invest-pnl">
-                <div class="pnl-value ${pnlClass}">${sign}${formatTL(inv.pnl)}</div>
-                <div class="pnl-percent ${pnlClass}">${sign}%${inv.pnlPercent.toFixed(2)}</div>
-              </div>
-              <button class="delete-btn" onclick="deleteInv(${inv.id})">Sil</button>
-            </div>
-          `;
-        });
-        list.innerHTML = html;
-      } catch (e) {
-        console.log('Portföy hatası:', e);
-      }
-    }
-
-    async function deleteInv(id) {
-      await fetch(API + '/investments/' + id, {
-        method: 'DELETE',
-        headers: { 'Authorization': 'Bearer ' + token }
-      });
-      loadPortfolio();
-    }
-
-    if (token) {
-      startApp();
-    } else {
-      showLogin();
-    }
-  </script>
-</body>
-</html>
+    
+    /* Skeleton Loading */
+    .skeleton { background: linear-gradient(90deg, #334155 25%, #475569 50%, #334155 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 4px; height: 16px; }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar
